@@ -22,6 +22,7 @@ enum InstructionType
 
 enum AllInstructions
 {
+    // RVC
     C_ADDI4SPN,
     C_FLD,
     C_LW,
@@ -48,11 +49,22 @@ enum AllInstructions
     C_FLWSP,
     C_LDSP,
     C_MV,
+    C_JR,
     C_ADD,
     C_FSDSP,
     C_SWSP,
     C_FSWSP,
     C_SDSP,
+    C_EBREAK,
+    C_JALR,
+    C_NOP,
+    C_SUB,
+    C_XOR,
+    C_OR,
+    C_AND,
+    C_SRLI,
+    C_SRAI,
+    C_ANDI,
 
     // RVV - CONFIG
     VSETVLI_1,

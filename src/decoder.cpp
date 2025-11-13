@@ -4,17 +4,40 @@
 #include <iomanip>
 #include <stdexcept>
 
-inline bool is_instruction_compressed(uint32_t code)
+const uint32_t bitmask_12 = 0x1000;
+const uint8_t bitmask_12_shift = 12;
+
+const uint32_t bitmask_1_0 = 0x3;
+const uint8_t bitmask_1_0_shift = 0;
+
+const uint32_t bitmask_2_0 = 0xe000;
+const uint8_t bitmask_2_0_shift = 0;
+
+const uint32_t bitmask_11_7 = 0x7c0;
+const uint8_t bitmask_11_7_shift = 7;
+
+const uint32_t bitmask_6_2 = 0x7c;
+const uint8_t bitmask_6_2_shift = 2;
+
+const uint32_t bitmask_11_10 = 0xc00;
+const uint8_t bitmask_11_10_shift = 10;
+
+const uint32_t bitmask_6_5 = 0x60;
+const uint8_t bitmask_6_5_shift = 5;
+
+const uint32_t bitmask_15_13 = 0xe000;
+const uint8_t bitmask_15_13_shift = 13;
+
+inline bool
+is_instruction_compressed(uint32_t code)
 {
     return (code & 0x03) != 3;
 }
 
 void decode_compressed(uint32_t code, BaseInstruction &inst)
 {
-    uint32_t lower_2_bits_mask = 0x3;
-    uint32_t upper_3_bits_mask = 0xe000;
-    uint32_t masked_lower = code & lower_2_bits_mask;
-    uint32_t masked_upper = (code >> 13) & 0x7;
+    uint32_t masked_lower = (code & bitmask_1_0) >> bitmask_1_0_shift;
+    uint32_t masked_upper = (code & bitmask_15_13) >> bitmask_15_13_shift;
 
     switch (masked_lower)
     {
@@ -22,42 +45,41 @@ void decode_compressed(uint32_t code, BaseInstruction &inst)
         switch (masked_upper)
         {
         case 0x0:
-            // ADDI4SPN
             inst.kind = C_ADDI4SPN;
             inst.mnemonic = c_insts_mnem_map[C_ADDI4SPN];
             break;
         case 0x1:
-            // FLD
             inst.kind = C_FLD;
             inst.mnemonic = c_insts_mnem_map[C_FLD];
             break;
         case 0x2:
-            // LW
             inst.kind = C_LW;
             inst.mnemonic = c_insts_mnem_map[C_LW];
             break;
         case 0x3:
-            // FLW
-            // LD
+            // FLW is RV32 only (omitted)
+            inst.kind = C_LD;
+            inst.mnemonic = c_insts_mnem_map[C_LD];
             break;
         case 0x4:
             // reserved
+            throw std::runtime_error("Encountered reserved opcode");
             break;
         case 0x5:
-            // FSD
             inst.kind = C_FSD;
             inst.mnemonic = c_insts_mnem_map[C_FSD];
             break;
         case 0x6:
-            // SW
             inst.kind = C_SW;
             inst.mnemonic = c_insts_mnem_map[C_SW];
             break;
         case 0x7:
-            // FSW
-            // SD
+            // FSW is RV32 only (omitted)
+            inst.kind = C_SD;
+            inst.mnemonic = c_insts_mnem_map[C_SD];
             break;
         default:
+            throw std::runtime_error("Encountered undefined switch case");
             break;
         }
         break;
@@ -65,38 +87,95 @@ void decode_compressed(uint32_t code, BaseInstruction &inst)
         switch (masked_upper)
         {
         case 0x0:
-            // ADDI
-            inst.kind = C_ADDI;
-            inst.mnemonic = c_insts_mnem_map[C_ADDI];
+            if ((code & bitmask_11_7) >> bitmask_11_7_shift)
+            {
+                inst.kind = C_ADDI;
+                inst.mnemonic = c_insts_mnem_map[C_ADDI];
+            }
+            else
+            {
+                inst.kind = C_NOP;
+                inst.mnemonic = c_insts_mnem_map[C_NOP];
+            }
             break;
         case 0x1:
-            // JAL
-            // ADDIW
+            // JAL is RV32 only (omitted)
+            inst.kind = C_ADDIW;
+            inst.mnemonic = c_insts_mnem_map[C_ADDIW];
             break;
         case 0x2:
-            // LI
             inst.kind = C_LI;
             inst.mnemonic = c_insts_mnem_map[C_LI];
             break;
         case 0x3:
-            // LUI
-            // ADDI16SP
+            if (((code & bitmask_11_7) >> bitmask_11_7_shift) == 0x2)
+            {
+                inst.kind = C_ADDI16SP;
+                inst.mnemonic = c_insts_mnem_map[C_ADDI16SP];
+            }
+            else if (((code & bitmask_11_7) >> bitmask_11_7_shift) != 0x0 && (((code & bitmask_11_7) >> bitmask_11_7_shift) != 0x2))
+            {
+                inst.kind = C_LUI;
+                inst.mnemonic = c_insts_mnem_map[C_LUI];
+            }
+            else
+            {
+                throw std::runtime_error("Encountered undefined switch case");
+            }
             break;
         case 0x4:
-            // MISC-ALU
+            switch ((code & bitmask_11_10) >> bitmask_11_10_shift)
+            {
+            case 0x0:
+                inst.kind = C_SRLI;
+                inst.mnemonic = c_insts_mnem_map[C_SRLI];
+                break;
+            case 0x1:
+                inst.kind = C_SRAI;
+                inst.mnemonic = c_insts_mnem_map[C_SRAI];
+                break;
+            case 0x2:
+                inst.kind = C_ANDI;
+                inst.mnemonic = c_insts_mnem_map[C_ANDI];
+                break;
+            case 0x3:
+                switch ((code & bitmask_6_5) >> bitmask_6_5_shift)
+                {
+                case 0x0:
+                    inst.kind = C_SUB;
+                    inst.mnemonic = c_insts_mnem_map[C_SUB];
+                    break;
+                case 0x1:
+                    inst.kind = C_XOR;
+                    inst.mnemonic = c_insts_mnem_map[C_XOR];
+                    break;
+                case 0x2:
+                    inst.kind = C_OR;
+                    inst.mnemonic = c_insts_mnem_map[C_OR];
+                    break;
+                case 0x3:
+                    inst.kind = C_AND;
+                    inst.mnemonic = c_insts_mnem_map[C_AND];
+                    break;
+                default:
+                    throw std::runtime_error("Encountered undefined switch case");
+                    break;
+                }
+                break;
+            default:
+                throw std::runtime_error("Encountered undefined switch case");
+                break;
+            }
             break;
         case 0x5:
-            // J
             inst.kind = C_J;
             inst.mnemonic = c_insts_mnem_map[C_J];
             break;
         case 0x6:
-            // BEQZ
             inst.kind = C_BEQZ;
             inst.mnemonic = c_insts_mnem_map[C_BEQZ];
             break;
         case 0x7:
-            // BNEZ
             inst.kind = C_BNEZ;
             inst.mnemonic = c_insts_mnem_map[C_BNEZ];
             break;
@@ -108,46 +187,82 @@ void decode_compressed(uint32_t code, BaseInstruction &inst)
         switch (masked_upper)
         {
         case 0x0:
-            // SLLI
             inst.kind = C_SLLI;
             inst.mnemonic = c_insts_mnem_map[C_SLLI];
             break;
         case 0x1:
-            // FLDSP
             inst.kind = C_FLDSP;
             inst.mnemonic = c_insts_mnem_map[C_FLDSP];
             break;
         case 0x2:
-            // LWSP
             inst.kind = C_LWSP;
             inst.mnemonic = c_insts_mnem_map[C_LWSP];
             break;
         case 0x3:
-            // FLWSP
-            // LDSP
+            // FLWSP is RV32 only (omitted)
+            inst.kind = C_LDSP;
+            inst.mnemonic = c_insts_mnem_map[C_LDSP];
             break;
         case 0x4:
-            // J[AL]R/MV/ADD
+            if ((code & bitmask_12) >> bitmask_12_shift)
+            {
+                if (!((code & bitmask_11_7) >> bitmask_11_7_shift) && !((code && bitmask_6_2) >> bitmask_6_2_shift))
+                {
+                    inst.kind = C_EBREAK;
+                    inst.mnemonic = c_insts_mnem_map[C_EBREAK];
+                    break;
+                }
+
+                if (!((code & bitmask_11_7) >> bitmask_11_7_shift))
+                {
+                    throw std::runtime_error("Illegal operands for instruction (C.ADD/C.JALR): " + std::to_string(code));
+                }
+
+                if ((code & bitmask_6_2) >> bitmask_6_2_shift)
+                {
+                    inst.kind = C_ADD;
+                    inst.mnemonic = c_insts_mnem_map[C_ADD];
+                }
+                else
+                {
+                    inst.kind = C_JALR;
+                    inst.mnemonic = c_insts_mnem_map[C_JALR];
+                }
+            }
+            else
+            {
+                if ((code & bitmask_6_2) >> bitmask_6_2_shift)
+                {
+                    inst.kind = C_MV;
+                    inst.mnemonic = c_insts_mnem_map[C_MV];
+                }
+                else
+                {
+                    inst.kind = C_JR;
+                    inst.mnemonic = c_insts_mnem_map[C_JR];
+                }
+            }
             break;
         case 0x5:
-            // FSDSP
             inst.kind = C_FSDSP;
             inst.mnemonic = c_insts_mnem_map[C_FSDSP];
             break;
         case 0x6:
-            // SWSP
             inst.kind = C_SWSP;
             inst.mnemonic = c_insts_mnem_map[C_SWSP];
             break;
         case 0x7:
-            // FSWSP
-            // SDSP
+            // FSWSP is RV32 only (omitted)
+            inst.kind = C_SDSP;
+            inst.mnemonic = c_insts_mnem_map[C_SDSP];
             break;
         default:
+            throw std::runtime_error("Encountered undefined switch case");
             break;
         }
         break;
     default:
+        throw std::runtime_error("Encountered undefined switch case");
         break;
     }
 
@@ -221,7 +336,7 @@ void decode_uncompressed(uint32_t code, BaseInstruction &inst)
         decode_vector_instruction(code, inst);
         break;
     default:
-        throw std::runtime_error("Uncompressed instruction kind: " + std::to_string(masked));
+        // throw std::runtime_error("Uncompressed instruction kind: " + std::to_string(masked));
         break;
     }
 }

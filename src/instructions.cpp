@@ -58,11 +58,21 @@ c_insts_map_t c_insts_mnem_map = c_insts_map_t({
     {C_FLWSP, "C.FLWSP"},
     {C_LDSP, "C.LDSP"},
     {C_MV, "C.MV"},
+    {C_JR, "C.JR"},
     {C_ADD, "C.ADD"},
     {C_FSDSP, "C.FSDSP"},
     {C_SWSP, "C.SWSP"},
     {C_FSWSP, "C.FSWSP"},
     {C_SDSP, "C.SDSP"},
+    {C_EBREAK, "C.EBREAK"},
+    {C_NOP, "C.NOP"},
+    {C_SUB, "C.SUB"},
+    {C_XOR, "C.XOR"},
+    {C_OR, "C.OR"},
+    {C_AND, "C.AND"},
+    {C_SRLI, "C.SRLI"},
+    {C_SRAI, "C.SRAI"},
+    {C_ANDI, "C.ANDI"},
 });
 
 c_inst_map rvv_config_insts = c_inst_map({

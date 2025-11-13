@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -Wall -Wextra -std=c++23 -I./src
+CXXFLAGS := -O2 -Wall -Wextra -std=c++23 -I./src
 
 SRC_DIR := src
 BUILD_DIR := build
