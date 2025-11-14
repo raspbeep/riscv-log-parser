@@ -10,13 +10,15 @@ int main()
     auto file_reader = FileReader("logs/commit.log");
     std::string line;
     uint32_t code;
-    BaseInstruction inst;
     size_t count_compressed = 0;
     size_t count = 0;
     while (file_reader.get_next_line(line))
     {
+        DecodedInstruction inst;
         code = extract_instruction_from_line(line);
-        inst = decode_instruction(code);
+        inst.line = line;
+        decode_instruction(code, inst);
+
         if (inst.compressed)
             count_compressed++;
         count++;

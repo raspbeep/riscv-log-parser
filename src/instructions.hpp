@@ -9,8 +9,10 @@
 #include <tuple>
 #include <vector>
 #include <unordered_map>
+#include <memory>
+#include <variant>
 
-enum InstructionType
+enum InstType
 {
     R_t,
     I_t,
@@ -18,9 +20,38 @@ enum InstructionType
     B_t,
     U_t,
     J_t,
+    RV,
+    C
 };
 
-enum AllInstructions
+enum class InstFormat
+{
+    R,
+    I,
+    S,
+    B,
+    U,
+    J,
+    CR,
+    CI,
+    CSS,
+    CIW,
+    CL,
+    CS,
+    CB,
+    CJ,
+    OPIVV,
+    OPFVV,
+    OPMVV,
+    OPIVI,
+    OPIVX,
+    OPFVF,
+    OPMVX,
+    OPCFG,
+    UNKNOWN
+};
+
+enum InstEnum
 {
     // RVC
     C_ADDI4SPN,
@@ -67,106 +98,156 @@ enum AllInstructions
     C_ANDI,
 
     // RVV - CONFIG
-    VSETVLI_1,
-    VSETVLI_2,
-    VSETIVLI,
-    VSETVL,
+    V_VSETVLI,
+    V_VSETVLI,
+    V_VSETVL,
+    V_VSETIVLI,
 
-    // RVV
-    OPIVV,
-    OPFVV,
-    OPMVV,
-    OPIVI,
-    OPIVX,
-    OPFVF,
-    OPMVX,
+    // Integer adds
+    V_ADD_VV,
+    V_ADD_VX,
+    V_ADD_VI,
+
+    // Integer subtract
+    V_SUB_VV,
+    V_SUB_VX,
+
+    // Integer reverse subtract
+    VR_SUB_VX,
+    VR_SUB_VI,
+
+    // Widening unsigned integer add/subtract, 2*SEW = SEW +/- SEW
+    VW_ADDU_VV,
+    VW_ADDU_VX,
+    VW_SUBU_VV,
+    VW_SUBU_VX,
+
+    // Widening signed integer add/subtract, 2*SEW = SEW +/- SEW
+    VW_ADD_VV,
+    VW_ADD_VX,
+    VW_SUB_VV,
+    VW_SUB_VX,
+
+    // Widening unsigned integer add/subtract, 2*SEW = 2*SEW +/- SEW
+    VW_ADDU_WV,
+    VW_ADDU_WX,
+    VW_SUBU_WV,
+    VW_SUBU_WX,
+
+    // Widening signed integer add/subtract, 2*SEW = 2*SEW +/- SEW
+    VW_ADD_WV,
+    VW_ADD_WX,
+    VW_SUB_WV,
+    VW_SUB_WX,
+
+    // Zero-extend SEW/2 source to SEW destination
+    V_ZEXT_VF2,
+
+    // Sign-extend SEW/2 source to SEW destination
+    V_SEXT_VF2,
+
+    // Zero-extend SEW/4 source to SEW destination
+    V_ZEXT_VF4,
+
+    // Sign-extend SEW/4 source to SEW destination
+    V_SEXT_VF4,
+
+    // Zero-extend SEW/8 source to SEW destination
+    V_ZEXT_VF8,
+
+    // Sign-extend SEW/8 source to SEW destination
+    V_SEXT_VF8,
+
 };
 
-struct BaseInstruction
+struct RTypeFields
 {
-    std::string line;
+    uint8_t rd, rs1, rs2, funct3, funct7;
+};
+
+struct OPIVVTypeFields
+{
+    uint8_t vs2;
+    uint8_t vs1;
+    uint8_t vd;
+};
+
+struct OPFVVTypeFields
+{
+    uint8_t vs2;
+    uint8_t vs1;
+    uint8_t vd_rd;
+};
+
+struct OPMVVTypeFields
+{
+    uint8_t vs2;
+    uint8_t vs1;
+    uint8_t vd_rd;
+};
+
+struct OPIVITypeFields
+{
+    uint8_t vs2;
+    uint8_t imm;
+    uint8_t vd;
+};
+
+struct OPIVXTypeFields
+{
+    uint8_t vs2;
+    uint8_t rs1;
+    uint8_t vd;
+};
+
+struct OPFVFTypeFields
+{
+    uint8_t vs2;
+    uint8_t rs1;
+    uint8_t vd;
+};
+
+struct OPMVXTypeFields
+{
+    uint8_t vs2;
+    uint8_t rs1;
+    uint8_t vd_rd;
+};
+
+// struct OPCFGTypeFields
+// {
+//     uint8_t vs2;
+//     uint8_t;
+//     uint8_t;
+// };
+
+using FormatPayload = std::variant<
+    std::monostate,
+    RTypeFields,
+    OPIVVTypeFields,
+    OPFVVTypeFields,
+    OPMVVTypeFields,
+    OPIVITypeFields,
+    OPIVXTypeFields,
+    OPFVFTypeFields,
+    OPMVXTypeFields>;
+
+struct DecodedInstruction
+{
     uint32_t code;
-    std::string mnemonic;
-    AllInstructions kind;
+    std::string_view mnemonic;
+    std::string line;
+    InstEnum name;
+    InstFormat format;
+    FormatPayload payload;
+
     bool compressed;
 
     virtual void print() {};
 };
 
-using c_inst = std::pair<std::string_view, AllInstructions>;
-using c_inst_map = std::unordered_map<uint16_t, c_inst>;
-using c_insts_map_t = std::unordered_map<AllInstructions, std::string_view>;
-
-extern c_inst_map c_quadrant_0;
-extern c_inst_map c_quadrant_1;
-extern c_inst_map c_quadrant_2;
-extern std::array<c_inst_map, 3> c_insts;
+using c_insts_map_t = std::unordered_map<InstEnum, std::string_view>;
 extern c_insts_map_t c_insts_mnem_map;
-
-extern c_inst_map rvv_config_insts;
-extern c_inst_map rvv_insts;
-
-// constexpr auto c_quadrant_0 = std::to_array<c_inst>({
-//     {0x0, "C.ADDI4SPN", C_ADDI4SPN},
-//     {0x2, "C.LW", C_LW},
-//     {0x3, "C.FLW", C_FLW},
-//     {0x7, "C.FSW", C_FSW},
-// });
-
-// constexpr auto c_quadrant_1 = std::to_array<c_inst>({
-//     {0x0, "C.ADDI", C_ADDI},
-//     {0x1, "C.JAL", C_JAL},
-//     {0x2, "C.LI", C_LI},
-//     {0x3, "C.ADDI16SP", C_ADDI16SP},
-//     {0x4, "C.ADDW", C_ADDW},
-//     {0x5, "C.J", C_J},
-//     {0x6, "C.BEQZ", C_BEQZ},
-//     {0x7, "C.BNEZ", C_BNEZ},
-// });
-
-// constexpr auto c_quadrant_2 = std::to_array<c_inst>({
-//     {0x0, "C.SLLI", C_SLLI},
-//     {0x1, "C.FLDSP", C_FLDSP},
-//     {0x2, "C.LWSP", C_LWSP},
-//     {0x3, "C.FLWSP", C_FLWSP},
-//     {0x4, "C.MV", C_MV},
-//     {0x5, "C.FSDSP", C_FSDSP},
-//     {0x6, "C.SWSP", C_SWSP},
-//     {0x7, "C.FSWSP", C_FSWSP},
-// });
-
-// template <typename T, std::size_t... Ns>
-// constexpr auto join_arrays(const std::array<T, Ns> &...arrays)
-// {
-//     std::array<T, (Ns + ...)> result{};
-//     T *out = result.data();
-//     ((out = std::copy(arrays.begin(), arrays.end(), out)), ...);
-//     return result;
-// }
-
-// template <std::size_t... Ns>
-// constexpr auto offsets()
-// {
-//     constexpr std::size_t num = sizeof...(Ns);
-//     std::array<std::size_t, num + 1> arr{};
-//     std::size_t acc = 0;
-//     std::size_t values[] = {Ns...};
-//     for (std::size_t i = 0; i < num; ++i)
-//     {
-//         arr[i] = acc;
-//         acc += values[i];
-//     }
-//     arr[num] = acc;
-//     return arr;
-// }
-
-// constexpr auto c_insts = join_arrays(c_quadrant_0, c_quadrant_1, c_quadrant_2);
-// constexpr auto c_insts_group_offsets = offsets<c_quadrant_0.size(), c_quadrant_1.size(), c_quadrant_2.size()>();
-
-// static_assert(c_insts_group_offsets.size() == 4);
-// static_assert(c_insts_group_offsets[0] == 0);
-// static_assert(c_insts_group_offsets[1] == c_quadrant_0.size());
-// static_assert(c_insts_group_offsets[2] == c_quadrant_0.size() + c_quadrant_1.size());
-// static_assert(c_insts_group_offsets[3] == c_insts.size());
+using inst_u_ptr = std::unique_ptr<DecodedInstruction>;
 
 #endif
