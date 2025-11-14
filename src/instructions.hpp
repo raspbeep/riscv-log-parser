@@ -99,7 +99,6 @@ enum InstEnum
 
     // RVV - CONFIG
     V_VSETVLI,
-    V_VSETVLI,
     V_VSETVL,
     V_VSETIVLI,
 

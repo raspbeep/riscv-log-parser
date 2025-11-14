@@ -43,10 +43,3 @@ c_insts_map_t c_insts_mnem_map = c_insts_map_t({
     {C_SRAI, "C.SRAI"},
     {C_ANDI, "C.ANDI"},
 });
-
-c_insts_map_t c_insts_mnem_map = c_insts_map_t({
-    {V_VSETVLI, "V.VSETVLI"},
-    {V_VSETVLI, "V.VSETVLI"},
-    {V_VSETVL, "V.VSETVL"},
-    {V_VSETIVLI, "V.VSETIVLI"},
-});
