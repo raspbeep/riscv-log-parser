@@ -9,7 +9,7 @@ OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
 
 TARGET := parser
 
-all: clean $(TARGET)
+all: $(TARGET)
 
 $(TARGET): $(OBJS)
 	@mkdir -p $(BUILD_DIR)

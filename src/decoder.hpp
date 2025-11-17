@@ -44,6 +44,9 @@
 #define bitmask_19_15 0xf8000
 #define bitmask_19_15_shift 15
 
+#define bitmask_31_26 0xfc000000
+#define bitmask_31_26_shift 26
+
 #define MASK(c, m) ((c & m) >> m##_shift)
 
 void decode_instruction(uint32_t code, DecodedInstruction &inst);

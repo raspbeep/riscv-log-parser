@@ -11,6 +11,9 @@
 #include <unordered_map>
 #include <memory>
 #include <variant>
+#include <iostream>
+
+#include "utils.hpp"
 
 enum InstType
 {
@@ -26,7 +29,9 @@ enum InstType
 
 enum class InstFormat
 {
+    UNKNOWN,
     R,
+    R_4,
     I,
     S,
     B,
@@ -47,12 +52,30 @@ enum class InstFormat
     OPIVX,
     OPFVF,
     OPMVX,
-    OPCFG,
-    UNKNOWN
+    OPCFG
 };
 
 enum InstEnum
 {
+    // common
+    LD,
+    JALR,
+    JAL,
+    CSRRS,
+    ADDI,
+    AUIPC,
+    BNE,
+    ADD,
+    LUI,
+    SLRIW,
+    SD,
+    SUBW,
+    FMV,
+    LR,
+    FENCE,
+    FMADD,
+    FNMSUB,
+
     // RVC
     C_ADDI4SPN,
     C_FLD,
@@ -103,60 +126,41 @@ enum InstEnum
     V_VSETIVLI,
 
     // Integer adds
-    V_ADD_VV,
-    V_ADD_VX,
-    V_ADD_VI,
+    V_ADD,
 
     // Integer subtract
-    V_SUB_VV,
-    V_SUB_VX,
+    V_SUB,
+    V_MERGE,
+    V_SMUL,
+    V_SLL,
+    V_SLIDEDOWN,
+    V_RSUB,
+    V_RGATHER,
 
-    // Integer reverse subtract
-    VR_SUB_VX,
-    VR_SUB_VI,
+    V_MACC,
+    V_MV_S_X,
+    V_REDSUM,
+    V_MV_X_S,
+    V_POPC,
+    V_FIRST,
+    V_FADD,
+    V_FMV,
 
-    // Widening unsigned integer add/subtract, 2*SEW = SEW +/- SEW
-    VW_ADDU_VV,
-    VW_ADDU_VX,
-    VW_SUBU_VV,
-    VW_SUBU_VX,
+    V_MSBF,
+    V_MSOF,
+    V_MSIF,
+    V_IOTA,
+    V_ID_V,
+    V_FMUL,
 
-    // Widening signed integer add/subtract, 2*SEW = SEW +/- SEW
-    VW_ADD_VV,
-    VW_ADD_VX,
-    VW_SUB_VV,
-    VW_SUB_VX,
-
-    // Widening unsigned integer add/subtract, 2*SEW = 2*SEW +/- SEW
-    VW_ADDU_WV,
-    VW_ADDU_WX,
-    VW_SUBU_WV,
-    VW_SUBU_WX,
-
-    // Widening signed integer add/subtract, 2*SEW = 2*SEW +/- SEW
-    VW_ADD_WV,
-    VW_ADD_WX,
-    VW_SUB_WV,
-    VW_SUB_WX,
-
-    // Zero-extend SEW/2 source to SEW destination
-    V_ZEXT_VF2,
-
-    // Sign-extend SEW/2 source to SEW destination
-    V_SEXT_VF2,
-
-    // Zero-extend SEW/4 source to SEW destination
-    V_ZEXT_VF4,
-
-    // Sign-extend SEW/4 source to SEW destination
-    V_SEXT_VF4,
-
-    // Zero-extend SEW/8 source to SEW destination
-    V_ZEXT_VF8,
-
-    // Sign-extend SEW/8 source to SEW destination
-    V_SEXT_VF8,
-
+    V_FMV_S_F,
+    V_FMV_F_S,
+    V_MFNE,
+    V_FREDOSUM,
+    V_FREDUSUM,
+    V_FMACC,
+    V_FNMSAC,
+    V_FNMSUB
 };
 
 struct RTypeFields
@@ -231,6 +235,9 @@ using FormatPayload = std::variant<
     OPFVFTypeFields,
     OPMVXTypeFields>;
 
+using if_string_map_t = std::unordered_map<InstFormat, std::string_view>;
+extern if_string_map_t InstructionFormatStringMap;
+
 struct DecodedInstruction
 {
     uint32_t code;
@@ -242,11 +249,16 @@ struct DecodedInstruction
 
     bool compressed;
 
-    virtual void print() {};
+    void print()
+    {
+        std::cout << "[Instruction print]" << std::endl;
+        std::cout << line << std::endl;
+        std::cout << "format: " << InstructionFormatStringMap[format] << std::endl;
+    };
 };
 
-using c_insts_map_t = std::unordered_map<InstEnum, std::string_view>;
-extern c_insts_map_t c_insts_mnem_map;
+using insts_map_t = std::unordered_map<InstEnum, std::string_view>;
+extern insts_map_t insts_mnem_map;
 using inst_u_ptr = std::unique_ptr<DecodedInstruction>;
 
 #endif

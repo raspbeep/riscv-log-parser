@@ -14,7 +14,7 @@ int main()
     size_t count = 0;
     while (file_reader.get_next_line(line))
     {
-        DecodedInstruction inst;
+        DecodedInstruction inst{};
         code = extract_instruction_from_line(line);
         inst.line = line;
         decode_instruction(code, inst);
