@@ -46,3 +46,28 @@ bool FileReader::get_next_line(std::string &line)
     }
     return false;
 }
+
+std::size_t FileReader::get_lines_count()
+{
+    if (!m_ifile.is_open())
+    {
+        throw std::runtime_error("File is not open");
+    }
+
+    std::streampos curr_pos = m_ifile.tellg();
+    m_ifile.clear();
+
+    m_ifile.seekg(0, std::ios::beg);
+
+    std::size_t line_count = 0;
+    std::string tmp;
+    while (std::getline(m_ifile, tmp))
+    {
+        ++line_count;
+    }
+
+    m_ifile.clear();
+    m_ifile.seekg(curr_pos);
+
+    return line_count;
+}

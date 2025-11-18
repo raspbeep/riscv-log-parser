@@ -18,6 +18,8 @@ public:
     void close();
 
     bool get_next_line(std::string &line);
+
+    std::size_t get_lines_count();
 };
 
 #endif

@@ -16,4 +16,6 @@ std::string uint32_t_to_bin(uint32_t value);
 
 std::string uint32_t_to_dec_hex_bin(uint32_t value);
 
+int32_t sign_extend(uint32_t value, unsigned int bits);
+
 #endif
