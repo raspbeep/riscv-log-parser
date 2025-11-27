@@ -131,10 +131,13 @@ if_string_map_t InstructionFormatStringMap = if_string_map_t({{InstFormat::R, "R
                                                               {InstFormat::OPCFG, "OPCFG"},
                                                               {InstFormat::UNKNOWN, "UNKNOWN"}});
 
-uint16_t extract_c_j_offset(uint16_t offset_raw)
-{
-    uint16_t offset = 0;
-    for (const auto &[to, from] : bit_map)
-        offset |= ((offset_raw >> from) & 0x1) << to;
-    return offset;
-}
+RVC_reg_num_names_map_t RVC_reg_num_names_map = RVC_reg_num_names_map_t({
+    {RVC_reg_num::x8, "x8"},
+    {RVC_reg_num::x9, "x9"},
+    {RVC_reg_num::x10, "x10"},
+    {RVC_reg_num::x11, "x11"},
+    {RVC_reg_num::x12, "x12"},
+    {RVC_reg_num::x13, "x13"},
+    {RVC_reg_num::x14, "x14"},
+    {RVC_reg_num::x15, "x15"},
+});

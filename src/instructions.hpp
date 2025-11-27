@@ -172,6 +172,65 @@ enum InstEnum
     V_FNMSUB
 };
 
+using if_string_map_t = std::unordered_map<InstFormat, std::string_view>;
+extern if_string_map_t InstructionFormatStringMap;
+
+enum RVC_reg_num
+{
+    x8 = 0,
+    x9,
+    x10,
+    x11,
+    x12,
+    x13,
+    x14,
+    x15,
+};
+
+enum RVC_reg_abi_name
+{
+    s0 = 0,
+    s1,
+    a0,
+    a1,
+    a2,
+    a3,
+    a4,
+    a5,
+};
+
+enum RVC_fp_reg_num
+{
+    f8 = 0,
+    f9,
+    f10,
+    f11,
+    f12,
+    f13,
+    f14,
+    f15,
+};
+
+enum RVC_fp_reg_abi_name
+{
+    fs0 = 0,
+    fs1,
+    fa0,
+    fa1,
+    fa2,
+    fa3,
+    fa4,
+    fa5,
+};
+
+using RVC_reg_num_names_map_t = std::unordered_map<RVC_reg_num, std::string_view>;
+extern RVC_reg_num_names_map_t RVC_reg_num_names_map;
+
+static std::string_view get_rvc_reg_name(uint8_t reg_num)
+{
+    return RVC_reg_num_names_map[static_cast<RVC_reg_num>(reg_num)];
+}
+
 struct TypeFields
 {
     virtual void print_operands() const = 0;
@@ -264,7 +323,7 @@ struct CRTypeFields : TypeFields
         : rd_rs1(rd_rs1), rs2(rs2) {}
     void print_operands() const override
     {
-        std::cout << "rd/rs1: " << +rd_rs1 << " rs2: " << +rs2;
+        std::cout << "x" << +rd_rs1 << ", x" << +rs2;
     }
 };
 
@@ -297,7 +356,7 @@ struct CIWTypeFields : TypeFields
         : imm(imm), rd(rd) {}
     void print_operands() const override
     {
-        std::cout << "imm: " << +imm << " rd: " << +rd;
+        std::cout << "imm: " << +imm << ", " << get_rvc_reg_name(rd);
     }
 };
 
@@ -308,7 +367,7 @@ struct CLTypeFields : TypeFields
         : imm_upper(imm_upper), rs1(rs1), imm_lower(imm_lower), rd(rd) {}
     void print_operands() const override
     {
-        std::cout << "imm_upper: " << +imm_upper << " rs1: " << +rs1 << " imm_lower: " << +imm_lower << " rd: " << +rd;
+        std::cout << "imm_upper: " << +imm_upper << ", " << get_rvc_reg_name(rs1) << " imm_lower: " << +imm_lower << ", " << get_rvc_reg_name(rd);
     }
 };
 
@@ -319,7 +378,7 @@ struct CSTypeFields : TypeFields
         : imm_upper(imm_upper), rs1(rs1), imm_lower(imm_lower), rs2(rs2) {}
     void print_operands() const override
     {
-        std::cout << "imm_upper: " << +imm_upper << " rs1: " << +rs1 << " imm_lower: " << +imm_lower << " rs2: " << +rs2;
+        std::cout << "imm_upper: " << +imm_upper << ", " << get_rvc_reg_name(rs1) << " imm_lower: " << +imm_lower << ", " << get_rvc_reg_name(rs2);
     }
 };
 
@@ -330,18 +389,24 @@ struct CATypeFields : TypeFields
         : rd_rs1(rd_rs1), rs2(rs2) {}
     void print_operands() const override
     {
-        std::cout << "rd/rs1: " << +rd_rs1 << " rs2: " << +rs2;
+        std::cout << get_rvc_reg_name(rd_rs1) << ", " << get_rvc_reg_name(rs2);
     }
 };
 
 struct CBTypeFields : TypeFields
 {
     uint8_t offset_upper, rd_rs1, offset_lower;
+    int8_t offset;
+
     CBTypeFields(uint8_t offset_upper, uint8_t rd_rs1, uint8_t offset_lower)
-        : offset_upper(offset_upper), rd_rs1(rd_rs1), offset_lower(offset_lower) {}
+        : offset_upper(offset_upper), rd_rs1(rd_rs1), offset_lower(offset_lower), offset(0) {}
+
+    CBTypeFields(uint8_t offset_upper, uint8_t rd_rs1, uint8_t offset_lower, int8_t offset)
+        : offset_upper(offset_upper), rd_rs1(rd_rs1), offset_lower(offset_lower), offset(offset) {}
+
     void print_operands() const override
     {
-        std::cout << "offset_upper: " << +offset_upper << " rd/rs1: " << +rd_rs1 << " offset_lower: " << +offset_lower;
+        std::cout << get_rvc_reg_name(rd_rs1) << ", " << +offset;
     }
 };
 
@@ -438,16 +503,24 @@ struct BTypeFields : TypeFields
     uint8_t rs1;
     uint8_t imm_lower;
     uint8_t bit_7;
+
+    int16_t immediate;
+
     BTypeFields(uint8_t imm_upper, uint8_t rs2, uint8_t rs1,
                 uint8_t imm_lower, uint8_t bit_7)
         : imm_upper(imm_upper), rs2(rs2), rs1(rs1), imm_lower(imm_lower), bit_7(bit_7) {}
+
+    BTypeFields(uint8_t imm_upper, uint8_t rs2, uint8_t rs1,
+                uint8_t imm_lower, uint8_t bit_7, int16_t imm)
+        : imm_upper(imm_upper), rs2(rs2), rs1(rs1), imm_lower(imm_lower), bit_7(bit_7), immediate(imm) {}
     void print_operands() const override
     {
         std::cout << "imm_upper: " << +imm_upper
-                  << ", rs2: " << +rs2
-                  << ", rs1: " << +rs1
+                  << ", x" << +rs2
+                  << ", x" << +rs1
                   << ", imm_lower: " << +imm_lower
-                  << ", bit_7: " << +bit_7;
+                  << ", bit_7: " << +bit_7
+                  << ", imm: " << immediate;
     }
 };
 
@@ -481,61 +554,6 @@ struct JTypeFields : TypeFields
     }
 };
 
-enum RVC_reg_num
-{
-    x8 = 0,
-    x9,
-    x10,
-    x11,
-    x12,
-    x13,
-    x14,
-    x15,
-};
-
-enum RVC_reg_abi_name
-{
-    s0 = 0,
-    s1,
-    a0,
-    a1,
-    a2,
-    a3,
-    a4,
-    a5,
-};
-
-enum RVC_fp_reg_num
-{
-    f8 = 0,
-    f9,
-    f10,
-    f11,
-    f12,
-    f13,
-    f14,
-    f15,
-};
-
-enum RVC_fp_reg_abi_name
-{
-    fs0 = 0,
-    fs1,
-    fa0,
-    fa1,
-    fa2,
-    fa3,
-    fa4,
-    fa5,
-};
-
-// struct OPCFGTypeFields
-// {
-//     uint8_t vs2;
-//     uint8_t;
-//     uint8_t;
-// };
-
 using FormatPayload = std::variant<
     std::monostate,
 
@@ -564,9 +582,6 @@ using FormatPayload = std::variant<
     CATypeFields,
     CBTypeFields,
     CJTypeFields>;
-
-using if_string_map_t = std::unordered_map<InstFormat, std::string_view>;
-extern if_string_map_t InstructionFormatStringMap;
 
 struct DecodedInstruction
 {
@@ -604,18 +619,34 @@ using inst_u_ptr = std::unique_ptr<DecodedInstruction>;
 #include <bitset>
 #include <array>
 
-static constexpr std::array<std::pair<int, int>, 11> bit_map = {{{11, 10}, // offset[11] <- instr[12]
-                                                                 {4, 9},
-                                                                 {9, 8},
-                                                                 {8, 7},
-                                                                 {10, 6},
-                                                                 {6, 5},
-                                                                 {7, 4},
-                                                                 {3, 3},
-                                                                 {2, 2},
-                                                                 {1, 1},
-                                                                 {5, 0}}};
+static constexpr std::array<std::pair<int, int>, 11> c_j_offset_bit_map = {{{11, 10}, // to from
+                                                                            {4, 9},
+                                                                            {9, 8},
+                                                                            {8, 7},
+                                                                            {10, 6},
+                                                                            {6, 5},
+                                                                            {7, 4},
+                                                                            {3, 3},
+                                                                            {2, 2},
+                                                                            {1, 1},
+                                                                            {5, 0}}};
 
-uint16_t extract_c_j_offset(uint16_t offset_raw);
+static constexpr std::array<std::pair<int, int>, 8> c_b_offset_bit_map = {{{8, 7}, // to from
+                                                                           {4, 6},
+                                                                           {3, 5},
+                                                                           {7, 4},
+                                                                           {6, 3},
+                                                                           {2, 2},
+                                                                           {1, 1},
+                                                                           {5, 0}}};
+
+template <typename OFFSET_B_M_T>
+uint32_t extract_offset(uint16_t offset_raw, OFFSET_B_M_T bitmap)
+{
+    uint16_t offset = 0;
+    for (const auto &[to, from] : bitmap)
+        offset |= ((offset_raw >> from) & 0x1) << to;
+    return offset;
+}
 
 #endif

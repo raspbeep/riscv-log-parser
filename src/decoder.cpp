@@ -57,11 +57,25 @@ void decode_compressed_operands(uint32_t code, DecodedInstruction &inst)
             (uint8_t)MASK(code, bitmask_4_2));
         break;
     case InstFormat::CB:
+    {
+        uint8_t upper = MASK(code, bitmask_12_10);
+        uint8_t rd_rs1 = MASK(code, bitmask_9_7);
+        uint8_t lower = MASK(code, bitmask_6_2);
         inst.payload = CBTypeFields(
-            (uint8_t)MASK(code, bitmask_12_10),
-            (uint8_t)MASK(code, bitmask_9_7),
-            (uint8_t)MASK(code, bitmask_6_2));
-        break;
+            (uint8_t)upper,
+            (uint8_t)rd_rs1,
+            (uint8_t)lower);
+
+        if (inst.name == C_BEQZ || inst.name == C_BNEZ)
+        {
+            uint8_t offset = upper << 5;
+            offset |= lower;
+
+            inst.payload = CBTypeFields(upper, (uint8_t)MASK(code, bitmask_9_7), lower,
+                                        sign_extend(extract_offset<decltype(c_b_offset_bit_map)>(offset, c_b_offset_bit_map), 8));
+        }
+    }
+    break;
     case InstFormat::CJ:
         inst.payload = CJTypeFields(
             (uint16_t)MASK(code, bitmask_12_2));
@@ -71,7 +85,7 @@ void decode_compressed_operands(uint32_t code, DecodedInstruction &inst)
             std::cout << uint32_t_to_dec_hex_bin(MASK(code, bitmask_12_2)) << std::endl;
 
             uint32_t offset_raw = (uint32_t)MASK(code, bitmask_12_2);
-            uint16_t offset = extract_c_j_offset(offset_raw);
+            uint16_t offset = extract_offset<decltype(c_j_offset_bit_map)>(offset_raw, c_j_offset_bit_map);
 
             inst.payload = CJTypeFields(offset, sign_extend(offset, 12));
         }
@@ -752,6 +766,7 @@ void decode_common_instruction_operands(uint32_t code, DecodedInstruction &inst)
 
         break;
     case InstFormat::B:
+    {
         inst.payload = BTypeFields(
             (uint8_t)bits_30_25,
             (uint8_t)bits_24_20,
@@ -759,7 +774,14 @@ void decode_common_instruction_operands(uint32_t code, DecodedInstruction &inst)
             (uint8_t)bits_11_8,
             (uint8_t)bits_7);
 
-        break;
+        if (inst.name == BNE)
+        {
+            uint16_t immediate = (((bits_30_25 << 4) | bits_11_8) << 1) | bits_7;
+            std::cout << "IMMEDIATE: " << uint32_t_to_dec_hex_bin((uint32_t)immediate) << std::endl;
+        }
+    }
+
+    break;
     case InstFormat::U:
         inst.payload = UTypeFields(
             (uint32_t)bits_31_12,
