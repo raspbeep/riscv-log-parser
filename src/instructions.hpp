@@ -73,7 +73,12 @@ enum InstEnum
     CSRRS,
     ADDI,
     AUIPC,
+    BEQ,
     BNE,
+    BLT,
+    BGE,
+    BLTU,
+    BGEU,
     ADD,
     LUI,
     SLRIW,
@@ -330,11 +335,16 @@ struct CRTypeFields : TypeFields
 struct CITypeFields : TypeFields
 {
     uint8_t imm_upper, rd_rs1, imm_lower;
+    int8_t immediate;
+
     CITypeFields(uint8_t imm_upper, uint8_t rd_rs1, uint8_t imm_lower)
-        : imm_upper(imm_upper), rd_rs1(rd_rs1), imm_lower(imm_lower) {}
+        : imm_upper(imm_upper), rd_rs1(rd_rs1), imm_lower(imm_lower), immediate(0) {}
+
+    CITypeFields(uint8_t imm_upper, uint8_t rd_rs1, uint8_t imm_lower, int8_t imm)
+        : imm_upper(imm_upper), rd_rs1(rd_rs1), imm_lower(imm_lower), immediate(imm) {}
     void print_operands() const override
     {
-        std::cout << "imm_upper: " << +imm_upper << " rd/rs1: " << +rd_rs1 << " imm_lower: " << +imm_lower;
+        std::cout << " x" << +rd_rs1 << " immmediate: " << +immediate;
     }
 };
 
@@ -473,9 +483,9 @@ struct ITypeFields : TypeFields
         : imm(imm), rs1(rs1), rd(rd) {}
     void print_operands() const override
     {
-        std::cout << "imm: " << +imm
-                  << ", rs1: " << +rs1
-                  << ", rd: " << +rd;
+        std::cout << " x" << +rd
+                  << ", x" << +rs1
+                  << ", " << +imm;
     }
 };
 
@@ -515,12 +525,9 @@ struct BTypeFields : TypeFields
         : imm_upper(imm_upper), rs2(rs2), rs1(rs1), imm_lower(imm_lower), bit_7(bit_7), immediate(imm) {}
     void print_operands() const override
     {
-        std::cout << "imm_upper: " << +imm_upper
-                  << ", x" << +rs2
+        std::cout << " x" << +rs2
                   << ", x" << +rs1
-                  << ", imm_lower: " << +imm_lower
-                  << ", bit_7: " << +bit_7
-                  << ", imm: " << immediate;
+                  << ", " << immediate;
     }
 };
 
@@ -639,6 +646,19 @@ static constexpr std::array<std::pair<int, int>, 8> c_b_offset_bit_map = {{{8, 7
                                                                            {2, 2},
                                                                            {1, 1},
                                                                            {5, 0}}};
+
+static constexpr std::array<std::pair<int, int>, 12> b_offset_bit_map = {{{12, 11},
+                                                                          {10, 10},
+                                                                          {9, 9},
+                                                                          {8, 8},
+                                                                          {7, 7},
+                                                                          {6, 6},
+                                                                          {5, 5},
+                                                                          {4, 4},
+                                                                          {3, 3},
+                                                                          {2, 2},
+                                                                          {1, 1},
+                                                                          {11, 0}}};
 
 template <typename OFFSET_B_M_T>
 uint32_t extract_offset(uint16_t offset_raw, OFFSET_B_M_T bitmap)

@@ -22,11 +22,25 @@ void decode_compressed_operands(uint32_t code, DecodedInstruction &inst)
             (uint8_t)MASK(code, bitmask_6_2));
         break;
     case InstFormat::CI:
+    {
         inst.payload = CITypeFields(
             (uint8_t)MASK(code, bitmask_12),
             (uint8_t)MASK(code, bitmask_11_7),
             (uint8_t)MASK(code, bitmask_6_2));
-        break;
+
+        if (inst.name == C_ADDI || inst.name == C_ADDIW)
+        {
+            uint8_t upper = MASK(code, bitmask_12);
+            uint8_t lower = MASK(code, bitmask_6_2);
+            upper = (upper << 5) | lower;
+            inst.payload = CITypeFields(
+                (uint8_t)MASK(code, bitmask_12),
+                (uint8_t)MASK(code, bitmask_11_7),
+                (uint8_t)MASK(code, bitmask_6_2),
+                sign_extend(upper, 6));
+        }
+    }
+    break;
     case InstFormat::CSS:
         inst.payload = CSSTypeFields(
             (uint8_t)MASK(code, bitmask_12_7),
@@ -767,18 +781,14 @@ void decode_common_instruction_operands(uint32_t code, DecodedInstruction &inst)
         break;
     case InstFormat::B:
     {
+        uint16_t immediate = (((bits_30_25 << 4) | bits_11_8) << 1) | bits_7;
         inst.payload = BTypeFields(
             (uint8_t)bits_30_25,
             (uint8_t)bits_24_20,
             (uint8_t)bits_19_15,
             (uint8_t)bits_11_8,
-            (uint8_t)bits_7);
-
-        if (inst.name == BNE)
-        {
-            uint16_t immediate = (((bits_30_25 << 4) | bits_11_8) << 1) | bits_7;
-            std::cout << "IMMEDIATE: " << uint32_t_to_dec_hex_bin((uint32_t)immediate) << std::endl;
-        }
+            (uint8_t)bits_7,
+            sign_extend(extract_offset<decltype(b_offset_bit_map)>(immediate, b_offset_bit_map), 12));
     }
 
     break;
@@ -910,9 +920,37 @@ void decode_common_instruction(uint32_t code, DecodedInstruction &inst)
         inst.format = InstFormat::R;
         break;
     case 0x63:
-        inst.name = BNE;
-        inst.mnemonic = insts_mnem_map[BNE];
         inst.format = InstFormat::B;
+        switch (MASK(code, bitmask_14_12))
+        {
+        case 0x0:
+            inst.name = BEQ;
+            inst.mnemonic = insts_mnem_map[BEQ];
+            break;
+        case 0x1:
+            inst.name = BNE;
+            inst.mnemonic = insts_mnem_map[BNE];
+            break;
+        case 0x4:
+            inst.name = BLT;
+            inst.mnemonic = insts_mnem_map[BLT];
+            break;
+        case 0x5:
+            inst.name = BGE;
+            inst.mnemonic = insts_mnem_map[BGE];
+            break;
+        case 0x6:
+            inst.name = BLTU;
+            inst.mnemonic = insts_mnem_map[BLTU];
+            break;
+        case 0x7:
+            inst.name = BGEU;
+            inst.mnemonic = insts_mnem_map[BGEU];
+            break;
+        default:
+            break;
+        }
+
         break;
     case 0x67:
         inst.name = JALR;
