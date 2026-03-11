@@ -23,29 +23,42 @@ void decode_compressed_operands(uint32_t code, DecodedInstruction &inst)
         break;
     case InstFormat::CI:
     {
-        inst.payload = CITypeFields(
-            (uint8_t)MASK(code, bitmask_12),
-            (uint8_t)MASK(code, bitmask_11_7),
-            (uint8_t)MASK(code, bitmask_6_2));
+        uint8_t upper = MASK(code, bitmask_12);
+        uint8_t lower = MASK(code, bitmask_6_2);
 
-        if (inst.name == C_ADDI || inst.name == C_ADDIW)
+        if (inst.name == C_ADDI16SP)
         {
-            uint8_t upper = MASK(code, bitmask_12);
-            uint8_t lower = MASK(code, bitmask_6_2);
-            upper = (upper << 5) | lower;
+            uint16_t immediate = ((upper << 5) | lower);
+            immediate = extract_offset<decltype(addi16sp_imm_bit_map)>(immediate, addi16sp_imm_bit_map);
+
+            int32_t imm_mapped = sign_extend_addi16sp(immediate, 10);
+
+            // std::cout << "mapped: " << imm_mapped << std::endl;
             inst.payload = CITypeFields(
                 (uint8_t)MASK(code, bitmask_12),
                 (uint8_t)MASK(code, bitmask_11_7),
                 (uint8_t)MASK(code, bitmask_6_2),
-                sign_extend(upper, 6));
+                imm_mapped);
+            break;
         }
+
+        uint8_t immediate = (upper << 5) | lower;
+        inst.payload = CITypeFields(
+            (uint8_t)MASK(code, bitmask_12),
+            (uint8_t)MASK(code, bitmask_11_7),
+            (uint8_t)MASK(code, bitmask_6_2),
+            sign_extend(immediate, 6));
     }
     break;
     case InstFormat::CSS:
+    {
+        int32_t immediate = (uint8_t)MASK(code, bitmask_12_7) << 3;
         inst.payload = CSSTypeFields(
             (uint8_t)MASK(code, bitmask_12_7),
-            (uint8_t)MASK(code, bitmask_6_2));
-        break;
+            (uint8_t)MASK(code, bitmask_6_2),
+            immediate);
+    }
+    break;
     case InstFormat::CIW:
         inst.payload = CIWTypeFields(
             (uint8_t)MASK(code, bitmask_12_5),
@@ -501,8 +514,8 @@ void decode_vector_op_v_instruction(uint32_t code, DecodedInstruction &inst)
 
             default:
                 inst.print();
-                std::cout << "mask: " << uint32_t_to_dec_hex_bin(MASK(code, bitmask_31_26)) << std::endl;
-                throw std::runtime_error("Encountered undefined switch case (4)");
+                std::cout << "undefined switch case, mask: " << uint32_t_to_dec_hex_bin(MASK(code, bitmask_31_26)) << std::endl;
+                // throw std::runtime_error("Encountered undefined switch case (4)");
                 break;
             }
             break;
@@ -595,8 +608,8 @@ void decode_vector_op_v_instruction(uint32_t code, DecodedInstruction &inst)
                 break;
             default:
                 inst.print();
-                std::cout << "mask: " << uint32_t_to_dec_hex_bin(MASK(code, bitmask_31_26)) << std::endl;
-                throw std::runtime_error("Encountered undefined switch case (6)");
+                std::cout << "undefined switch case (6), mask: " << uint32_t_to_dec_hex_bin(MASK(code, bitmask_31_26)) << std::endl;
+                // throw std::runtime_error("Encountered undefined switch case (6)");
                 break;
             }
             break;
@@ -799,13 +812,18 @@ void decode_common_instruction_operands(uint32_t code, DecodedInstruction &inst)
 
         break;
     case InstFormat::J:
+    {
+        uint32_t immediate = MASK(code, bitmask_31_12);
+
         inst.payload = JTypeFields(
             (uint16_t)bits_30_21,
             (uint8_t)bits_20,
             (uint8_t)bits_19_12,
-            (uint8_t)bits_11_7);
+            (uint8_t)bits_11_7,
+            sign_extend(extract_offset<decltype(j_imm_bit_map)>(immediate, j_imm_bit_map), 20));
+    }
 
-        break;
+    break;
     default:
         throw std::runtime_error("Unknown instruction format to decode operands");
     }
@@ -860,9 +878,14 @@ void decode_common_instruction(uint32_t code, DecodedInstruction &inst)
         }
         break;
     case 0x13:
+        inst.format = InstFormat::I;
+        if (MASK(code, bitmask_31_20) == 0x0 && MASK(code, bitmask_19_15) == 0x0 && MASK(code, bitmask_11_7) == 0x0)
+        {
+            inst.name = NOP;
+            inst.mnemonic = insts_mnem_map[NOP];
+        }
         inst.name = ADDI;
         inst.mnemonic = insts_mnem_map[ADDI];
-        inst.format = InstFormat::I;
         break;
     case 0x17:
         inst.name = AUIPC;
@@ -870,9 +893,30 @@ void decode_common_instruction(uint32_t code, DecodedInstruction &inst)
         inst.format = InstFormat::U;
         break;
     case 0x1b:
-        inst.name = SLRIW;
-        inst.mnemonic = insts_mnem_map[SLRIW];
         inst.format = InstFormat::I;
+        switch (MASK(code, bitmask_14_12))
+        {
+        case 0x0:
+            inst.name = ADDIW;
+            inst.mnemonic = insts_mnem_map[ADDIW];
+            break;
+
+        case 0x1:
+            inst.name = SLLIW;
+            inst.mnemonic = insts_mnem_map[SLLIW];
+            break;
+
+        case 0x5:
+
+            inst.name = SLRIW_SAIW;
+            inst.mnemonic = insts_mnem_map[SLRIW_SAIW];
+            break;
+
+        default:
+            throw std::runtime_error("Unknown common instruction 11");
+            break;
+        }
+
         break;
     case 0xf:
         inst.name = FENCE;

@@ -24,7 +24,7 @@ std::string uint32_t_to_bin(uint32_t value)
 std::string uint32_t_to_dec_hex_bin(uint32_t value)
 {
     std::stringstream ss;
-    ss << "bin: " << uint32_t_to_bin(value) << " (dec: " << uint32_t_to_dec(value) << ") " << "(hex: 0x" << uint32_t_to_hex(value) << ")";
+    // ss << "bin: " << uint32_t_to_bin(value) << " (dec: " << uint32_t_to_dec(value) << ") " << "(hex: 0x" << uint32_t_to_hex(value) << ")";
     return ss.str();
 }
 
@@ -32,4 +32,10 @@ int32_t sign_extend(uint32_t value, unsigned int bits)
 {
     uint32_t mask = 1U << (bits - 1);
     return (int32_t)((value ^ mask) - mask);
+}
+
+int32_t sign_extend_addi16sp(uint32_t value, uint32_t size)
+{
+    uint32_t right_shift_amount = 32 - size;
+    return ((int32_t)(value << right_shift_amount)) >> right_shift_amount;
 }

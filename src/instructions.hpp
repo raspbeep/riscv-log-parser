@@ -61,6 +61,7 @@ enum InstEnum
     LOAD_PLACEHOLDER,
     STORE_PLACEHOLDER,
     // common
+    NOP,
     LB,
     LH,
     LW,
@@ -81,7 +82,9 @@ enum InstEnum
     BGEU,
     ADD,
     LUI,
-    SLRIW,
+    ADDIW,
+    SLLIW,
+    SLRIW_SAIW,
     SD,
     SUBW,
     FMV,
@@ -335,27 +338,30 @@ struct CRTypeFields : TypeFields
 struct CITypeFields : TypeFields
 {
     uint8_t imm_upper, rd_rs1, imm_lower;
-    int8_t immediate;
+    int16_t immediate;
 
     CITypeFields(uint8_t imm_upper, uint8_t rd_rs1, uint8_t imm_lower)
         : imm_upper(imm_upper), rd_rs1(rd_rs1), imm_lower(imm_lower), immediate(0) {}
 
-    CITypeFields(uint8_t imm_upper, uint8_t rd_rs1, uint8_t imm_lower, int8_t imm)
+    CITypeFields(uint8_t imm_upper, uint8_t rd_rs1, uint8_t imm_lower, int16_t imm)
         : imm_upper(imm_upper), rd_rs1(rd_rs1), imm_lower(imm_lower), immediate(imm) {}
+
     void print_operands() const override
     {
-        std::cout << " x" << +rd_rs1 << " immmediate: " << +immediate;
+        std::cout << " x" << +rd_rs1 << ", " << immediate;
     }
 };
 
 struct CSSTypeFields : TypeFields
 {
     uint8_t imm, rs2;
-    CSSTypeFields(uint8_t imm, uint8_t rs2)
-        : imm(imm), rs2(rs2) {}
+    int32_t immediate;
+
+    CSSTypeFields(uint8_t imm, uint8_t rs2, int32_t immediate)
+        : imm(imm), rs2(rs2), immediate(immediate) {}
     void print_operands() const override
     {
-        std::cout << "imm: " << +imm << " rs2: " << +rs2;
+        std::cout << " x" << +rs2 << ", " << immediate;
     }
 };
 
@@ -450,10 +456,9 @@ struct RTypeFields : TypeFields
         : funct7(funct7), rs2(rs2), rs1(rs1), rd(rd) {}
     void print_operands() const override
     {
-        std::cout << "funct7: " << +funct7
-                  << ", rs2: " << +rs2
-                  << ", rs1: " << +rs1
-                  << ", rd: " << +rd;
+        std::cout << " x" << +rd
+                  << ", x" << +rs1
+                  << ", x" << +rs2;
     }
 };
 
@@ -484,8 +489,8 @@ struct ITypeFields : TypeFields
     void print_operands() const override
     {
         std::cout << " x" << +rd
-                  << ", x" << +rs1
-                  << ", " << +imm;
+                  << ", " << +imm
+                  << "(" << +rs1 << ")";
     }
 };
 
@@ -539,8 +544,8 @@ struct UTypeFields : TypeFields
         : imm(imm), rd(rd) {}
     void print_operands() const override
     {
-        std::cout << "imm: " << +imm
-                  << ", rd: " << +rd;
+        std::cout << " x" << +rd
+                  << ", " << +imm;
     }
 };
 
@@ -550,14 +555,13 @@ struct JTypeFields : TypeFields
     uint8_t bit_20;
     uint8_t imm_lower;
     uint8_t rd;
-    JTypeFields(uint16_t imm_upper, uint8_t bit_20, uint8_t imm_lower, uint8_t rd)
-        : imm_upper(imm_upper), bit_20(bit_20), imm_lower(imm_lower), rd(rd) {}
+    int32_t immediate;
+    JTypeFields(uint16_t imm_upper, uint8_t bit_20, uint8_t imm_lower, uint8_t rd, int32_t imm)
+        : imm_upper(imm_upper), bit_20(bit_20), imm_lower(imm_lower), rd(rd), immediate(imm) {}
     void print_operands() const override
     {
-        std::cout << "imm_upper: " << +imm_upper
-                  << ", bit_20: " << +bit_20
-                  << ", imm_lower: " << +imm_lower
-                  << ", rd: " << +rd;
+        std::cout << " x" << +rd
+                  << ", " << immediate;
     }
 };
 
@@ -660,10 +664,40 @@ static constexpr std::array<std::pair<int, int>, 12> b_offset_bit_map = {{{12, 1
                                                                           {1, 1},
                                                                           {11, 0}}};
 
+static constexpr std::array<std::pair<int, int>, 20> j_imm_bit_map = {{{20, 19},
+                                                                       {10, 18},
+                                                                       {9, 17},
+                                                                       {8, 16},
+                                                                       {7, 15},
+                                                                       {6, 14},
+                                                                       {5, 13},
+                                                                       {4, 12},
+                                                                       {3, 11},
+                                                                       {2, 10},
+                                                                       {1, 9},
+                                                                       {11, 8},
+                                                                       {19, 7},
+                                                                       {18, 6},
+                                                                       {17, 5},
+                                                                       {16, 4},
+                                                                       {15, 3},
+                                                                       {14, 2},
+                                                                       {13, 1},
+                                                                       {12, 0}}};
+
+static constexpr std::array<std::pair<int, int>, 6> addi16sp_imm_bit_map = {{
+    {9, 5},
+    {4, 4},
+    {6, 3},
+    {8, 2},
+    {7, 1},
+    {5, 0},
+}};
+
 template <typename OFFSET_B_M_T>
-uint32_t extract_offset(uint16_t offset_raw, OFFSET_B_M_T bitmap)
+uint32_t extract_offset(uint32_t offset_raw, OFFSET_B_M_T bitmap)
 {
-    uint16_t offset = 0;
+    uint32_t offset = 0;
     for (const auto &[to, from] : bitmap)
         offset |= ((offset_raw >> from) & 0x1) << to;
     return offset;

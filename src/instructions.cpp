@@ -3,7 +3,7 @@
 insts_map_t insts_mnem_map = insts_map_t({
     {LOAD_PLACEHOLDER, "LOAD_PLACEHOLDER"},
     {STORE_PLACEHOLDER, "STORE_PLACEHOLDER"},
-
+    {NOP, "NOP"},
     {AUIPC, "AUIPC"},
     {ADDI, "ADDI"},
     {CSRRS, "CSRRS"},
@@ -24,7 +24,9 @@ insts_map_t insts_mnem_map = insts_map_t({
     {BGEU, "BGEU"},
     {ADD, "ADD"},
     {LUI, "LUI"},
-    {SLRIW, "SLRIW"},
+    {ADDIW, "ADDIW"},
+    {SLLIW, "SLLIW"},
+    {SLRIW_SAIW, "SLRIW_SAIW"},
     {SD, "SD"},
     {SUBW, "SUBW"},
     {FMV, "FMV"},

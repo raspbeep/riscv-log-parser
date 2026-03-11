@@ -18,4 +18,6 @@ std::string uint32_t_to_dec_hex_bin(uint32_t value);
 
 int32_t sign_extend(uint32_t value, unsigned int bits);
 
+int32_t sign_extend_addi16sp(uint32_t value, uint32_t size);
+
 #endif

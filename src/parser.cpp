@@ -50,7 +50,8 @@ int main(int argc, char *argv[])
         inst.line = line;
         decode_instruction(code, inst);
 
-        std::cout << inst.line << std::endl;
+        std::cout << uint32_t_to_hex(code) << " ";
+        // std::cout << inst.line << std::endl;
         std::cout << inst.mnemonic << " ";
         inst.print_payload();
         std::cout << std::endl;
